@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Autosshfs 远程挂载",
+    "description": "在「设置」页面用 sshfs 挂载 / 卸载远端 SSH 目录，并把同样的操作以 autosshfs 工具提供给 Agent。"
+  }
+}

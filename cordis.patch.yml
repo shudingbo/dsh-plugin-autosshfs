@@ -1,0 +1,3 @@
+- insert:
+    - id: autosshfs
+      name: dsh-plugin-autosshfs

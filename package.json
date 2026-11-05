@@ -1,0 +1,56 @@
+{
+  "name": "dsh-plugin-autosshfs",
+  "version": "1.0.0",
+  "description": "Manage sshfs mounts and unmounts from a dedicated DeepSeek Harness main panel, and expose the same operations to the agent as the autosshfs tool.",
+  "type": "module",
+  "license": "MIT",
+  "author": "shudingbo",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/shudingbo/dsh-plugin-autosshfs.git"
+  },
+  "homepage": "https://github.com/shudingbo/dsh-plugin-autosshfs#readme",
+  "bugs": {
+    "url": "https://github.com/shudingbo/dsh-plugin-autosshfs/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "deepseek-harness",
+    "sshfs",
+    "fuse",
+    "mount"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "host",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}
