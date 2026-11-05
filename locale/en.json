@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Autosshfs mounts",
-    "description": "Mounts and unmounts remote SSH directories with sshfs from a Settings page, and exposes the same operations to the agent as the autosshfs tool."
+    "description": "Opens a dedicated management page from the sidebar More menu to mount and unmount remote SSH directories with sshfs (config in ~/.autosshfs.json), and exposes the same operations to the agent as the autosshfs tool."
   }
 }

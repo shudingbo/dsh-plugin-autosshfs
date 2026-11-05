@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-autosshfs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Manage sshfs mounts and unmounts from a dedicated DeepSeek Harness main panel, and expose the same operations to the agent as the autosshfs tool.",
   "type": "module",
   "license": "MIT",
