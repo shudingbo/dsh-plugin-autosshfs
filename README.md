@@ -93,12 +93,15 @@ plugin_manager(action: "install_bundle", target: "github:shudingbo/dsh-plugin-au
 装完刷新页面即可；Host 侧模块改动需要重启 Harness 进程（或把插件禁用再启用）才会重新加载。
 重新安装会按 bundle 默认重新选中并启用。
 
-想控制升级节奏，可以固定到 tag 或提交，升级时改 spec 重新安装：
+想控制升级节奏，可以固定到 tag 或提交（同样是先 `remove_bundle`，再用带 committish 的 spec 安装）：
 
 ```
 github:shudingbo/dsh-plugin-autosshfs#v1.0.1
 github:shudingbo/dsh-plugin-autosshfs#<commit-sha>
 ```
+
+> 已安装的包不能直接用 `install_bundle` 覆盖：带 HMR 的 profile 会对"包里已存在的依赖"直接抛
+> `already-installed`，所以升级一律是"先卸载、再安装"。
 
 补充两点：
 
