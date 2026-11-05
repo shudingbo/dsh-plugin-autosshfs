@@ -3,23 +3,19 @@ name: release
 # One command (`git push --tags`) is the whole release: tests, npm publish with
 # provenance, then a GitHub release.
 #
-# Publishing has two modes, chosen by whether the NPM_TOKEN secret exists:
+# Publishing uses npm Trusted Publishing (OIDC): the package's npm settings list
+# this repository and this workflow as a trusted publisher, so the workflow's
+# OIDC identity is accepted as proof of presence. No token secret is stored and
+# no interactive 2FA is needed. Configure it with:
 #
-#   1. Trusted publishing (OIDC, preferred). The package's npm settings list
-#      this repository + workflow as a trusted publisher. No token is stored;
-#      npm accepts the workflow's OIDC identity as proof of presence, so the
-#      publish is direct and this run also creates the GitHub release.
-#      Configure it with:
-#        npm trust github @shudingbo/dsh-plugin-autosshfs \
-#          --file release.yml --repo shudingbo/dsh-plugin-autosshfs \
-#          --allow-publish -y
-#      then delete the NPM_TOKEN secret.
+#   npm trust github @shudingbo/dsh-plugin-autosshfs \
+#     --file release.yml --repo shudingbo/dsh-plugin-autosshfs --allow-publish -y
 #
-#   2. Staged publishing (NPM_TOKEN present). npm no longer lets a granular
-#      access token satisfy 2FA for a direct publish, so the run uploads a
-#      staged release instead; a maintainer approves it with 2FA at
-#      https://www.npmjs.com/ (or `npm stage approve <id>`). The GitHub
-#      release is then created after that approval.
+# A fork that publishes under its own account can add a granular access token
+# instead: set an NPM_TOKEN secret and add
+# `env: NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` to the publish step. Note
+# that npm requires interactive 2FA for token-based publishes, so a token only
+# reaches `npm stage publish` (see docs: staged publishing).
 on:
   push:
     tags: ['v*']
@@ -32,8 +28,6 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,20 +51,11 @@ jobs:
             exit 1
           fi
 
-      # An unset secret reaches the step as a null env entry, and `null != ''`
-      # is true in GitHub expressions, so both branches test for null as well.
-      - name: Publish with trusted publishing (OIDC)
-        if: env.NODE_AUTH_TOKEN == null || env.NODE_AUTH_TOKEN == ''
+      - name: Publish to npm
         run: npm publish --provenance --access public
 
-      - name: Stage the publish for a 2FA approval
-        if: env.NODE_AUTH_TOKEN != null && env.NODE_AUTH_TOKEN != ''
-        run: |
-          npm stage publish --provenance --access public --tag latest
-          echo "::notice::Staged. Approve it with 2FA: npm stage list, then npm stage approve <id> (or the npm website)."
-
       - name: Create the GitHub release
-        if: startsWith(github.ref, 'refs/tags/') && (env.NODE_AUTH_TOKEN == null || env.NODE_AUTH_TOKEN == '')
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
