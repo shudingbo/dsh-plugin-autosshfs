@@ -76,6 +76,36 @@ plugin_manager(action: "install_bundle", target: "/绝对路径/dsh-plugin-autos
 - 工具：Agent 可直接调用 `autosshfs`。
 - 卸载：`plugin_manager(action: "remove_bundle", target: "dsh-plugin-autosshfs")`。
 
+### 升级
+
+**GitHub 安装的插件没有"检查更新"**：插件页的版本区只对从 npm registry 安装的依赖开放
+（Host 端 `updatable` 判定要求依赖是 registry spec），`github:` / `link:` 这类依赖会被判定为
+不可更新，详情页不会出现「版本 / 检查更新」区块。DSH 本身也没有后台自动更新——任何更新都是
+用户发起的一次操作。
+
+更新 GitHub 安装的插件 = 让它重新解析一次 git 依赖（取默认分支的最新提交）：
+
+```
+plugin_manager(action: "remove_bundle", target: "dsh-plugin-autosshfs")
+plugin_manager(action: "install_bundle", target: "github:shudingbo/dsh-plugin-autosshfs")
+```
+
+装完刷新页面即可；Host 侧模块改动需要重启 Harness 进程（或把插件禁用再启用）才会重新加载。
+重新安装会按 bundle 默认重新选中并启用。
+
+想控制升级节奏，可以固定到 tag 或提交，升级时改 spec 重新安装：
+
+```
+github:shudingbo/dsh-plugin-autosshfs#v1.0.1
+github:shudingbo/dsh-plugin-autosshfs#<commit-sha>
+```
+
+补充两点：
+
+- **本地 `link:` 安装**是例外：它直接指向工作目录，改代码即生效，不存在"更新"这一步。
+- **如果以后发布到 npm**，插件页就会出现版本列表与一键升级（含失败回滚），这也是想要
+  "点一下就更新"的唯一途径。
+
 ## 系统依赖（sshfs / FUSE）
 
 插件会在「使用帮助 → 系统依赖」里显示依赖状态。Linux 上如果检测到包管理器、并且 `sudo -n` 可用
