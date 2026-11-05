@@ -1,8 +1,25 @@
 name: release
 
-# Publish on a version tag, so one command (`git push --tags`) is the whole
-# release: tests, npm publish with provenance, then a GitHub release.
-# workflow_dispatch re-runs the same publish for an existing tag.
+# One command (`git push --tags`) is the whole release: tests, npm publish with
+# provenance, then a GitHub release.
+#
+# Publishing has two modes, chosen by whether the NPM_TOKEN secret exists:
+#
+#   1. Trusted publishing (OIDC, preferred). The package's npm settings list
+#      this repository + workflow as a trusted publisher. No token is stored;
+#      npm accepts the workflow's OIDC identity as proof of presence, so the
+#      publish is direct and this run also creates the GitHub release.
+#      Configure it with:
+#        npm trust github @shudingbo/dsh-plugin-autosshfs \
+#          --file release.yml --repo shudingbo/dsh-plugin-autosshfs \
+#          --allow-publish -y
+#      then delete the NPM_TOKEN secret.
+#
+#   2. Staged publishing (NPM_TOKEN present). npm no longer lets a granular
+#      access token satisfy 2FA for a direct publish, so the run uploads a
+#      staged release instead; a maintainer approves it with 2FA at
+#      https://www.npmjs.com/ (or `npm stage approve <id>`). The GitHub
+#      release is then created after that approval.
 on:
   push:
     tags: ['v*']
@@ -15,6 +32,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,16 +57,18 @@ jobs:
             exit 1
           fi
 
-      # Token auth: set the NPM_TOKEN repository secret.
-      # Trusted publishing instead: delete the env line and configure this
-      # repository as a trusted publisher on the package's npm settings page.
-      - name: Publish to npm
+      - name: Publish with trusted publishing (OIDC)
+        if: env.NODE_AUTH_TOKEN == ''
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Stage the publish for a 2FA approval
+        if: env.NODE_AUTH_TOKEN != ''
+        run: |
+          npm stage publish --provenance --access public --tag latest
+          echo "::notice::Staged. Approve it with 2FA: npm stage list, then npm stage approve <id> (or the npm website)."
 
       - name: Create the GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && env.NODE_AUTH_TOKEN == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
