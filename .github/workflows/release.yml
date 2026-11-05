@@ -57,18 +57,20 @@ jobs:
             exit 1
           fi
 
+      # An unset secret reaches the step as a null env entry, and `null != ''`
+      # is true in GitHub expressions, so both branches test for null as well.
       - name: Publish with trusted publishing (OIDC)
-        if: env.NODE_AUTH_TOKEN == ''
+        if: env.NODE_AUTH_TOKEN == null || env.NODE_AUTH_TOKEN == ''
         run: npm publish --provenance --access public
 
       - name: Stage the publish for a 2FA approval
-        if: env.NODE_AUTH_TOKEN != ''
+        if: env.NODE_AUTH_TOKEN != null && env.NODE_AUTH_TOKEN != ''
         run: |
           npm stage publish --provenance --access public --tag latest
           echo "::notice::Staged. Approve it with 2FA: npm stage list, then npm stage approve <id> (or the npm website)."
 
       - name: Create the GitHub release
-        if: startsWith(github.ref, 'refs/tags/') && env.NODE_AUTH_TOKEN == ''
+        if: startsWith(github.ref, 'refs/tags/') && (env.NODE_AUTH_TOKEN == null || env.NODE_AUTH_TOKEN == '')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
