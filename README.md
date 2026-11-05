@@ -43,7 +43,15 @@ DeepSeek Harness 插件：用 `sshfs` 在 Linux / macOS 上挂载、卸载远端
 这是一个纯 JavaScript 的 Harness bundle（`package.json` 里的 `dsh.bundle.patch` + `dsh.client`），
 没有构建步骤，`index.js` / `client.js` / `host/` 就是可以直接运行的源码。
 
-### 方式一：直接从 GitHub 安装（推荐）
+### 方式零：从 npm 安装（发布到 npm 之后可用）
+
+```
+plugin_manager(action: "install_bundle", target: "@shudingbo/dsh-plugin-autosshfs")
+```
+
+这是唯一能享受插件页「检查更新 / 一键升级」的安装方式（详见文末「发布」与「升级」两节）。
+
+### 方式一：直接从 GitHub 安装（推荐，未发布 npm 时也能用）
 
 在 Harness 会话里让 `plugin_manager` 从仓库安装：
 
@@ -74,7 +82,7 @@ plugin_manager(action: "install_bundle", target: "/绝对路径/dsh-plugin-autos
 - 界面：左侧栏点击 **更多**，选择 **Autosshfs 挂载**，主界面会切换到独立挂载管理页
   （`sidebar.panellist.actions` → `main` 面板 `autosshfs`）。
 - 工具：Agent 可直接调用 `autosshfs`。
-- 卸载：`plugin_manager(action: "remove_bundle", target: "dsh-plugin-autosshfs")`。
+- 卸载：`plugin_manager(action: "remove_bundle", target: "@shudingbo/dsh-plugin-autosshfs")`。
 
 ### 升级
 
@@ -86,7 +94,7 @@ plugin_manager(action: "install_bundle", target: "/绝对路径/dsh-plugin-autos
 更新 GitHub 安装的插件 = 让它重新解析一次 git 依赖（取默认分支的最新提交）：
 
 ```
-plugin_manager(action: "remove_bundle", target: "dsh-plugin-autosshfs")
+plugin_manager(action: "remove_bundle",  target: "@shudingbo/dsh-plugin-autosshfs")
 plugin_manager(action: "install_bundle", target: "github:shudingbo/dsh-plugin-autosshfs")
 ```
 
@@ -106,8 +114,8 @@ github:shudingbo/dsh-plugin-autosshfs#<commit-sha>
 补充两点：
 
 - **本地 `link:` 安装**是例外：它直接指向工作目录，改代码即生效，不存在"更新"这一步。
-- **如果以后发布到 npm**，插件页就会出现版本列表与一键升级（含失败回滚），这也是想要
-  "点一下就更新"的唯一途径。
+- **发布到 npm 之后**：改用 npm 安装（`@shudingbo/dsh-plugin-autosshfs`）即可在插件页看到版本列表与
+  一键升级（含失败回滚）——这是想要"点一下就更新"的唯一途径。
 
 ## 系统依赖（sshfs / FUSE）
 
@@ -288,6 +296,62 @@ primitives 的按钮 / 开关规格。
 | 首次连接报 host key | 先用 `ssh` 连接一次，或 `ssh-keyscan -H <host> >> ~/.ssh/known_hosts` |
 | 自动安装未执行 | 需要免密 sudo（`sudo -n true` 成功）。否则按页面给出的命令在终端执行 |
 
+## 发布（npm + GitHub Release）
+
+包名 `@shudingbo/dsh-plugin-autosshfs`（scoped、公开）。
+
+### 一次性准备
+
+1. **scope 归属**：`@shudingbo` 必须是你自己的 npm 用户名，或你创建的 npm 组织。
+   npm 的用户名和组织名共用同一命名空间，不能给已有用户名再建同名组织。
+   - npm 用户名就是 `shudingbo` → 直接可用，**不需要建组织**；
+   - 否则到 <https://www.npmjs.com/org/create> 建组织，或换成你拥有的 scope。
+2. **首次发布必须显式公开**：scoped 包默认私有。仓库已在 `package.json` 固定
+   `publishConfig.access = public` 与 `publishConfig.registry = https://registry.npmjs.org/`。
+3. **CI 认证（二选一）**
+   - *Granular Access Token*（最省事）：npm → Access Tokens 生成带 *Read and write* 的 token，
+     然后 `gh secret set NPM_TOKEN --repo shudingbo/dsh-plugin-autosshfs`。
+   - *Trusted Publishing（OIDC，推荐长期用）*：先把包发布一次，再到该包的 npm 设置页添加
+     Trusted Publisher：GitHub / 仓库 `shudingbo/dsh-plugin-autosshfs` / workflow `release.yml`；
+     之后删掉 `release.yml` 里 `NODE_AUTH_TOKEN` 那一行即可，无需长期密钥。
+4. 账号开启 2FA 不影响 CI 发布（token 是独立凭据）；本地手动发布会要求 OTP。
+
+### 发一个版本
+
+```bash
+npm test
+npm version patch --no-git-tag-version   # 或 minor / major
+git commit -am "chore(release): $(node -p "require('./package.json').version")"
+git tag "v$(node -p "require('./package.json').version")"
+git push origin main --tags
+```
+
+推送 tag 后 [Release workflow](./.github/workflows/release.yml) 自动执行：
+测试 → 校验 tag 与 `package.json` 版本一致 → `npm publish --provenance --access public` →
+`gh release create --generate-notes`。
+
+本地直接发（需先 `npm login`）：`npm publish`；`prepublishOnly` 会先跑测试。
+
+### 让 AI 帮你发
+
+配置好上面的 token/secret 后，在会话里说一句「发布 1.0.2」即可，流程固定为：
+
+1. `npm test`；2. 改 `package.json` 版本并提交；3. `git tag v1.0.2` + `git push --tags`；
+4. 盯 `gh run watch`，把 npm 包地址与 GitHub Release 地址回报。
+
+凭据只存在于 GitHub secret（或你本机 `~/.npmrc`），不会进入会话与仓库。
+
+### 多个 registry（npm 官方 + 公司内部）
+
+- 本仓库提交了 [`.npmrc`](./.npmrc)，只含 `@shudingbo:registry=https://registry.npmjs.org/`，
+  **没有**任何 token：即使机器默认源指向公司 Verdaccio，`@shudingbo/*` 的发布与安装仍走官方源。
+- 你现有的 `~/.npmrc`（`@cdyw` / `@ntypes` → `http://222.18.149.18:4873/`）不受影响，按 scope 各走各的。
+- `package.json` 的 `publishConfig.registry` 再兜一层，任何 `npm publish` 都不会误发到内部源。
+- 若希望内部 mirror 也能取到这个包：让 Verdaccio 配 uplink 代理 npmjs（只读拉取）；
+  或另加一个使用 `INTERNAL_NPM_TOKEN` + `--registry=<内部源>` 的 job。**不要把内部 token 混进公开仓库的发布步骤。**
+- 公司网络拦截 `registry.npmjs.org` 时，可在 CI 里设 `NPM_CONFIG_REGISTRY` / 代理；
+  本仓库零依赖，测试不需要网络。
+
 ## 开发
 
 无第三方依赖、无构建步骤，克隆即可运行：
@@ -310,6 +374,8 @@ npm test          # node --test test/*.test.mjs（44 个用例，覆盖 Linux/ma
 ### 发布检查清单
 
 - `npm test` 全绿；`node --check index.js client.js host/*.js`
-- `package.json` 的 `name` 与 `client.js` 里 `window.__ModuleLoader__.load({ id })` 一致
-- `cordis.patch.yml` 的 `name` 与包名一致
+- `package.json` 的 `name` 与 `client.js` 里 `window.__ModuleLoader__.load({ id })` 一致（现在是
+  `@shudingbo/dsh-plugin-autosshfs`）
+- `cordis.patch.yml` 的 `name` 与包名一致（YAML 里以 `@` 开头必须加引号）
+- `version` 与要推的 tag（`vX.Y.Z`）一致 —— CI 会校验
 - 不带任何真实主机、账号、密码或私钥；`~/.autosshfs.json` 已被 `.gitignore` 排除

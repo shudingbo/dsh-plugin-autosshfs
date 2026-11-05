@@ -14,7 +14,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-plugin-autosshfs',
+  id: '@shudingbo/dsh-plugin-autosshfs',
   factory(require) {
     const React = require('react')
     const h = React.createElement

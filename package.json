@@ -1,5 +1,5 @@
 {
-  "name": "dsh-plugin-autosshfs",
+  "name": "@shudingbo/dsh-plugin-autosshfs",
   "version": "1.0.1",
   "description": "Manage sshfs mounts and unmounts from a dedicated DeepSeek Harness main panel, and expose the same operations to the agent as the autosshfs tool.",
   "type": "module",
@@ -42,7 +42,12 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "dsh": {
     "bundle": {
