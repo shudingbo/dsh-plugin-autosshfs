@@ -308,13 +308,30 @@ primitives 的按钮 / 开关规格。
    - 否则到 <https://www.npmjs.com/org/create> 建组织，或换成你拥有的 scope。
 2. **首次发布必须显式公开**：scoped 包默认私有。仓库已在 `package.json` 固定
    `publishConfig.access = public` 与 `publishConfig.registry = https://registry.npmjs.org/`。
-3. **CI 认证（二选一）**
-   - *Granular Access Token*（最省事）：npm → Access Tokens 生成带 *Read and write* 的 token，
-     然后 `gh secret set NPM_TOKEN --repo shudingbo/dsh-plugin-autosshfs`。
-   - *Trusted Publishing（OIDC，推荐长期用）*：先把包发布一次，再到该包的 npm 设置页添加
-     Trusted Publisher：GitHub / 仓库 `shudingbo/dsh-plugin-autosshfs` / workflow `release.yml`；
-     之后删掉 `release.yml` 里 `NODE_AUTH_TOKEN` 那一行即可，无需长期密钥。
-4. 账号开启 2FA 不影响 CI 发布（token 是独立凭据）；本地手动发布会要求 OTP。
+3. **CI 认证：先 staged，再换 OIDC**
+   npm 从 2026 年起收紧 2FA：**granular token 直接 `npm publish` 会要求交互式 OTP**（CI 里会失败
+   `EOTP`），2FA-bypass token 也将在 2027-01 失去直接发布能力。所以本仓库按"有没有
+   `NPM_TOKEN`"选择两种模式：
+
+   | 模式 | 触发条件 | 行为 |
+   | --- | --- | --- |
+   | **Staged** | 配置了 `NPM_TOKEN` secret | CI 执行 `npm stage publish`，维护者用 2FA 批准后才真正上线 |
+   | **Trusted Publishing** | 没有 `NPM_TOKEN` | CI 用 OIDC 直接 `npm publish`，同一轮还会创建 GitHub Release |
+
+   首次发布（包还不存在，无法配置 trusted publisher）走 Staged：
+   1) 生成 granular token（权限选 **Read and write (publish and stage)**，scope `@shudingbo`），
+      `gh secret set NPM_TOKEN --repo shudingbo/dsh-plugin-autosshfs`；
+   2) 打 tag 跑发布，CI 输出 `staged with id <id>`；
+   3) 本机 `npm login` 后 `npm stage approve <id>`（要 OTP），或到 npm 网站批准；
+   4) 包上线后配置 trusted publisher（二选一）：
+      ```bash
+      npm trust github @shudingbo/dsh-plugin-autosshfs \
+        --file release.yml --repo shudingbo/dsh-plugin-autosshfs --allow-publish -y
+      ```
+      或在包设置页添加 Trusted Publisher：GitHub / `shudingbo/dsh-plugin-autosshfs` / `release.yml`；
+   5) `gh secret delete NPM_TOKEN --repo shudingbo/dsh-plugin-autosshfs` —— 之后每次打 tag
+      都是全自动发布（含 GitHub Release）。
+4. 账号开启 2FA 不影响 CI 发布：staged 模式在批准时才校验 OTP，OIDC 模式由 GitHub 身份代替。
 
 ### 发一个版本
 
@@ -327,8 +344,8 @@ git push origin main --tags
 ```
 
 推送 tag 后 [Release workflow](./.github/workflows/release.yml) 自动执行：
-测试 → 校验 tag 与 `package.json` 版本一致 → `npm publish --provenance --access public` →
-`gh release create --generate-notes`。
+测试 → 校验 tag 与 `package.json` 版本一致 → 发布（见上表：无 `NPM_TOKEN` 时 `npm publish` 并创建
+GitHub Release；有 `NPM_TOKEN` 时 `npm stage publish`，需 2FA 批准后再手动/重跑创建 Release）。
 
 本地直接发（需先 `npm login`）：`npm publish`；`prepublishOnly` 会先跑测试。
 
