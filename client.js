@@ -1,11 +1,11 @@
 /**
  * Autosshfs — browser half.
  *
- * A dedicated main-column page, opened from a row in the sidebar's More menu
- * (`sidebar.panellist.actions`). It is not part of Settings and does not take a
- * permanent line in the panel list: choosing the row dispatches the `autosshfs`
- * main panel, which owns the whole center column and offers two tabs — the mount
- * list and an in-app help page.
+ * A dedicated main-column page, opened from the standard global panel launcher
+ * in the left sidebar (`sidebar.panellist`). The shell owns that row: it shows
+ * the active state and offers the pin control, which moves the launcher into the
+ * More menu without leaving a row behind. The page itself owns the whole center
+ * column and offers two tabs — the mount list and an in-app help page.
  *
  * Every action goes through one JSON RPC route on the Host
  * (`POST /api/autosshfs/rpc`), the same service the `autosshfs` agent tool
@@ -563,19 +563,6 @@ window.__ModuleLoader__.load({
 }
 `
 
-    /** Styles for the sidebar More-menu row, which renders outside the page. */
-    const MENU_CSS = `
-.asf-menurow { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 34px; padding: 6px 8px; border: none; border-radius: var(--dsw-radius-md); background: transparent; cursor: pointer; font: inherit; font-size: 13px; line-height: 20px; color: var(--dsw-alias-label-primary); text-align: left; }
-@media (hover: hover) {
-  .asf-menurow:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
-}
-.asf-menurow:focus-visible { background: var(--dsw-alias-interactive-bg-hover); outline: none; }
-.asf-menurow-icon { display: inline-flex; flex: none; width: 14px; height: 14px; align-items: center; justify-content: center; color: var(--dsw-alias-menu-icon, var(--dsw-alias-label-secondary)); }
-.asf-menurow-icon svg { width: 14px; height: 14px; }
-.asf-menurow-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.asf-menurow-check { flex: none; width: 14px; height: 14px; color: var(--dsw-alias-label-primary); }
-`
-
     // ------------------------------------------------------------------- rpc
 
     /**
@@ -726,49 +713,6 @@ window.__ModuleLoader__.load({
      */
     function CodeBlock({ text }) {
       return h('pre', { className: 'asf-code', tabIndex: 0 }, text)
-    }
-
-    /**
-     * Build the sidebar More-menu row that opens the panel.
-     *
-     * The panel deliberately has no row of its own in the sidebar list: the list
-     * renders one labelled row per panel, so a fourth panel costs a whole line.
-     * This row lives in the existing More menu instead, which is where the shell
-     * already collects secondary entries.
-     * @param {(key: string, params?: Record<string, unknown>) => string} translate - activation-bound translate.
-     * @param {() => void} openPanel - switch the main column to this panel.
-     * @returns {(props: Record<string, any>) => object} the menu row component.
-     */
-    function createMenuRow(translate, openPanel) {
-      /**
-       * @param {{ t?: Function, usePanelInfo?: Function, onDismiss?: () => void }} props - slot props.
-       * @returns {object} the menu row element.
-       */
-      return function AutosshfsMenuRow(props) {
-        const t = typeof props?.t === 'function' ? props.t : translate
-        const activeId = typeof props?.usePanelInfo === 'function'
-          ? props.usePanelInfo(info => info.activePanelId)
-          : undefined
-        const active = activeId === PANEL_ID
-        const dismiss = typeof props?.onDismiss === 'function' ? props.onDismiss : () => {}
-        return h('button', {
-          type: 'button',
-          role: 'menuitem',
-          className: 'asf-menurow',
-          'aria-current': active ? 'page' : undefined,
-          title: t('panel.label'),
-          onClick: () => {
-            dismiss()
-            openPanel()
-          },
-        },
-        h('span', { className: 'asf-menurow-icon', 'aria-hidden': true }, h(Mark, { size: 14 })),
-        h('span', { className: 'asf-menurow-label' }, t('panel.label')),
-        active ? h('span', { className: 'asf-menurow-check', 'aria-hidden': true },
-          h('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none' },
-            h('path', { d: 'M5 12.8l4.2 4.2L19 7.4', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }))) : null,
-        )
-      }
     }
 
     /**
@@ -1731,34 +1675,25 @@ window.__ModuleLoader__.load({
         }
       }, 'autosshfs: dictionaries')
 
-      // The menu row renders inside the shell's menu card, outside this page, so
-      // its small stylesheet is owned by the plugin effect instead.
-      ctx.effect(() => {
-        const style = document.createElement('style')
-        style.dataset.dshPlugin = 'autosshfs'
-        style.textContent = MENU_CSS
-        document.head.append(style)
-        return () => { style.remove() }
-      }, 'autosshfs: menu row styles')
-
-      // The main-column page, dispatched by the More-menu row below.
+      // The main-column page, dispatched by the launcher below.
       ctx.slots.inject('main', () => ctx.slots.register({
         name: 'main',
         key: PANEL_ID,
         locale: NS,
       }, createPage(t)))
 
-      // One row in the sidebar's existing More menu instead of a panel-list row:
-      // the panel list costs one labelled line per entry, and this feature does
-      // not earn a permanent line in the navigation column.
-      ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
-        name: 'sidebar.panellist.actions',
+      // The shell's own global panel launcher. It owns the button, the active
+      // state, the accessible label, and the pin control that moves this entry
+      // into the More menu, so the plugin only supplies the glyph.
+      ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+        name: 'sidebar.panellist',
         id: PANEL_ID,
         order: PANEL_ORDER,
         locale: NS,
-      }, createMenuRow(t, () => { ctx.layout.selectPanel(PANEL_ID) })))
+        label: () => t('panel.label'),
+      }, ({ size }) => h(Mark, { size: size ?? 18 })))
     }
 
-    return { inject: ['slots', 'locale', 'layout'], apply }
+    return { inject: ['slots', 'locale'], apply }
   },
 })

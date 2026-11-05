@@ -5,8 +5,8 @@
 
 DeepSeek Harness 插件：用 `sshfs` 在 Linux / macOS 上挂载、卸载远端目录。
 把 `nrs-tools/lib/autosshfs.js` 的 sshfs 挂载 / 卸载能力做成 DeepSeek Harness 插件：
-**入口在左侧栏「更多」菜单里，点击后在整个主界面打开独立页面**（不是设置页，也不占用侧栏的
-面板行），同时把同一组操作以 `autosshfs` 工具暴露给 Agent。
+**入口是左侧栏的全局面板按钮**（与「插件」「自动化任务」同一排），点击后在整个主界面打开独立页面
+（不是设置页）；点该行的固定按钮还能把它收进「更多」菜单。同一组操作以 `autosshfs` 工具暴露给 Agent。
 
 - 配置文件仍然是 `~/.autosshfs.json`（可用 `AUTOSSHFS_CONFIG` 覆盖），**位置与格式都不变**，
   与命令行版 `autosshfs` 共用同一份数据。
@@ -79,8 +79,9 @@ plugin_manager(action: "install_bundle", target: "/绝对路径/dsh-plugin-autos
 
 ### 安装后
 
-- 界面：左侧栏点击 **更多**，选择 **Autosshfs 挂载**，主界面会切换到独立挂载管理页
-  （`sidebar.panellist.actions` → `main` 面板 `autosshfs`）。
+- 界面：左侧栏点击 **Autosshfs 挂载** 面板按钮，主界面会切换到独立挂载管理页
+  （`sidebar.panellist` → `main` 面板 `autosshfs`）。不想让它常驻一行时，点该行右侧的固定按钮，
+  它会收进 **更多** 菜单（菜单里还带勾选标记，再点固定可放回）。
 - 工具：Agent 可直接调用 `autosshfs`。
 - 卸载：`plugin_manager(action: "remove_bundle", target: "@shudingbo/dsh-plugin-autosshfs")`。
 
@@ -213,7 +214,7 @@ macFUSE 的额外选项，可在配置项的 `extraOptions` 里追加，例如 `
 
 ### 界面
 
-**左侧栏「更多」→ 主界面独立页面**（整列空间，不再是设置弹窗，也不占用侧栏面板行）：
+**左侧栏面板按钮 → 主界面独立页面**（整列空间，不是设置弹窗；可用面板行的固定按钮收进「更多」）：
 
 - **顶栏**：标题、sshfs 版本徽标、`已挂载/总数` 徽标、配置文件路径，以及刷新 / 全部挂载 /
   全部卸载 / 新增挂载四个操作。
@@ -261,7 +262,7 @@ macFUSE 的额外选项，可在配置项的 `extraOptions` 里追加，例如 `
 ```
 dsh-plugin-autosshfs/
 ├── index.js            Host 入口：注册 HTTP 路由与 Agent 工具，共用一个 service 实例
-├── client.js           Web 界面（main 面板页 + 「更多」菜单行，无 JSX）
+├── client.js           Web 界面（main 面板页 + 侧栏面板图标，无 JSX）
 ├── host/
 │   ├── service.js      唯一操作面：state/detail/add/update/remove/enable/mount/umount/install/check
 │   ├── config.js       ~/.autosshfs.json 读写（原子写、0600）、归一化、校验、脱敏
@@ -280,10 +281,10 @@ dsh-plugin-autosshfs/
 
 界面与 Agent 工具都调用 `host/service.js` 的同一个 `call(action, payload)`，不存在两套实现。
 
-界面挂载点：客户端注册 `main` 键（`autosshfs`）与 `sidebar.panellist.actions` 里的菜单行
-（同一 id）；菜单行点击后通过 `layout.selectPanel('autosshfs')` 切换到该面板。页面自己负责
-整列布局、滚动、弹层与帮助内容，主题色与控件样式全部沿用 DSH 的 `--dsw-alias-*` 令牌与
-primitives 的按钮 / 开关规格。
+界面挂载点：客户端注册 `main` 键（`autosshfs`）与侧栏帧 `sidebar.panellist` 里的面板图标
+（同一 id）。面板行由 shell 渲染——包括选中态、可访问标签和"固定/取消固定"控件（取消固定即进入
+「更多」菜单），插件只提供图标。页面自己负责整列布局、滚动、弹层与帮助内容，主题色与控件样式
+全部沿用 DSH 的 `--dsw-alias-*` 令牌与 primitives 的按钮 / 开关规格。
 
 ## 故障排查
 
